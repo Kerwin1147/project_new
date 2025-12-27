@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文本标注系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        /* 现代化配色方案 */
+        :root {
+            --primary-color: #4a6cf7;
+            --secondary-color: #6c757d;
+            --success-color: #28a745;
+            --info-color: #17a2b8;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --light-color: #f8f9fa;
+            --dark-color: #343a40;
+            --sidebar-bg: #1a1a2e;
+            --sidebar-hover: #16213e;
+            --card-bg: #ffffff;
+            --shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            --sidebar-width: 220px;
+            --sidebar-collapsed-width: 70px;
+            --transition-speed: 0.3s;
+        }
+
+        body {
+            background-color: var(--light-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* ========== 侧边栏样式 ========== */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: var(--sidebar-bg);
+            color: white;
+            transition: all var(--transition-speed) ease;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* 侧边栏折叠状态 */
+        .sidebar.collapsed {
+            width: var(--sidebar-collapsed-width);
+        }
+
+        /* 侧边栏头部 */
+        .sidebar-header {
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            min-height: 70px;
+            position: relative;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            white-space: nowrap;
+            overflow: hidden;
+            transition: all var(--transition-speed) ease;
+        }
+
+        .sidebar-brand i {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            flex-shrink: 0;
+            transition: all var(--transition-speed) ease;
+        }
+
+        .sidebar-brand h4 {
+            margin: 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+            opacity: 1;
+            transition: opacity var(--transition-speed) ease, width var(--transition-speed) ease;
+        }
+
+        /* 折叠时隐藏品牌图标和文字 */
+        .sidebar.collapsed .sidebar-brand {
+            opacity: 0;
+            width: 0;
+            overflow: hidden;
+        }
+
+        .sidebar.collapsed .sidebar-brand i,
+        .sidebar.collapsed .sidebar-brand h4 {
+            opacity: 0;
+            width: 0;
+        }
+
+        /* 折叠按钮 - 展开状态 */
+        .sidebar-toggle {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            border: none;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all var(--transition-speed) ease;
+            flex-shrink: 0;
+            position: absolute;
+            right: 12px;
+        }
+
+        .sidebar-toggle:hover {
+            background: var(--primary-color);
+            transform: scale(1.08);
+            box-shadow: 0 4px 12px rgba(74, 108, 247, 0.4);
+        }
+
+        .sidebar-toggle i {
+            font-size: 1rem;
+            transition: transform var(--transition-speed) ease;
+        }
+
+        /* 折叠状态下的按钮样式 */
+        .sidebar.collapsed .sidebar-toggle {
+            position: relative;
+            right: auto;
+            background: var(--primary-color);
+            box-shadow: 0 4px 12px rgba(74, 108, 247, 0.3);
+        }
+
+        .sidebar.collapsed .sidebar-toggle i {
+            transform: rotate(180deg);
+        }
+
+        .sidebar.collapsed .sidebar-toggle:hover {
+            background: #3a5ce5;
+            transform: scale(1.1);
+        }
+
+        /* 导航菜单 */
+        .sidebar-nav {
+            flex: 1;
+            padding: 1rem 0.75rem;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .nav-link {
+            color: rgba(255, 255, 255, 0.7);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            margin-bottom: 4px;
+            transition: all var(--transition-speed) ease;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-decoration: none;
+            position: relative;
+        }
+
+        .nav-link i {
+            font-size: 1.2rem;
+            flex-shrink: 0;
+            width: 24px;
+            text-align: center;
+        }
+
+        .nav-link span {
+            opacity: 1;
+            transition: opacity var(--transition-speed) ease;
+        }
+
+        .sidebar.collapsed .nav-link span {
+            opacity: 0;
+            width: 0;
+        }
+
+        .nav-link:hover {
+            color: white;
+            background-color: var(--sidebar-hover);
+            transform: translateX(3px);
+        }
+
+        .sidebar.collapsed .nav-link:hover {
+            transform: none;
+        }
+
+        .nav-link.active {
+            background-color: var(--primary-color);
+            color: white;
+            box-shadow: 0 4px 12px rgba(74, 108, 247, 0.4);
+        }
+
+        /* 折叠状态下的导航项 */
+        .sidebar.collapsed .nav-link {
+            justify-content: center;
+            padding: 0.75rem;
+        }
+
+        /* 折叠状态下的工具提示 */
+        .sidebar.collapsed .nav-link::after {
+            content: attr(data-title);
+            position: absolute;
+            left: calc(var(--sidebar-collapsed-width) + 10px);
+            background: var(--sidebar-bg);
+            color: white;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            z-index: 1001;
+            pointer-events: none;
+        }
+
+        .sidebar.collapsed .nav-link::before {
+            content: '';
+            position: absolute;
+            left: calc(var(--sidebar-collapsed-width) + 2px);
+            width: 0;
+            height: 0;
+            border-top: 6px solid transparent;
+            border-bottom: 6px solid transparent;
+            border-right: 8px solid var(--sidebar-bg);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s ease;
+            z-index: 1001;
+        }
+
+        .sidebar.collapsed .nav-link:hover::after,
+        .sidebar.collapsed .nav-link:hover::before {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* 侧边栏底部 */
+        .sidebar-footer {
+            padding: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+        }
+
+        .sidebar-footer small {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.75rem;
+            display: block;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: opacity var(--transition-speed) ease;
+        }
+
+        .sidebar.collapsed .sidebar-footer small {
+            opacity: 0;
+        }
+
+        /* ========== 主内容区域 ========== */
+        .main-wrapper {
+            margin-left: var(--sidebar-width);
+            transition: margin-left var(--transition-speed) ease;
+            min-height: 100vh;
+        }
+
+        .main-wrapper.expanded {
+            margin-left: var(--sidebar-collapsed-width);
+        }
+
+        .main-content {
+            padding: 2rem;
+        }
+
+        /* ========== 卡片样式 ========== */
+        .card {
+            background-color: var(--card-bg);
+            box-shadow: var(--shadow);
+            border: none;
+            border-radius: 0.75rem;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.2);
+        }
+
+        /* 页头样式 */
+        .page-header {
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        /* 按钮样式优化 */
+        .btn {
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        /* ========== 移动端遮罩层 ========== */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            opacity: 0;
+            transition: opacity var(--transition-speed) ease;
+        }
+
+        .sidebar-overlay.show {
+            display: block;
+            opacity: 1;
+        }
+
+        /* ========== 移动端菜单按钮 ========== */
+        .mobile-menu-btn {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 998;
+            width: 45px;
+            height: 45px;
+            border-radius: 12px;
+            border: none;
+            background: var(--primary-color);
+            color: white;
+            box-shadow: 0 4px 12px rgba(74, 108, 247, 0.4);
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .mobile-menu-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 16px rgba(74, 108, 247, 0.5);
+        }
+
+        .mobile-menu-btn i {
+            font-size: 1.3rem;
+        }
+
+        /* ========== 响应式设计 ========== */
+        @media (max-width: 992px) {
+            .sidebar {
+                left: calc(-1 * var(--sidebar-width));
+                width: var(--sidebar-width);
+            }
+
+            .sidebar.mobile-show {
+                left: 0;
+            }
+
+            .sidebar.collapsed {
+                width: var(--sidebar-width);
+            }
+
+            .sidebar.collapsed .sidebar-brand {
+                opacity: 1;
+                width: auto;
+            }
+
+            .sidebar.collapsed .sidebar-brand i,
+            .sidebar.collapsed .sidebar-brand h4 {
+                opacity: 1;
+                width: auto;
+            }
+
+            .sidebar.collapsed .nav-link span,
+            .sidebar.collapsed .sidebar-footer small {
+                opacity: 1;
+                width: auto;
+            }
+
+            .sidebar.collapsed .nav-link {
+                justify-content: flex-start;
+                padding: 0.75rem 1rem;
+            }
+
+            .sidebar.collapsed .nav-link::after,
+            .sidebar.collapsed .nav-link::before {
+                display: none;
+            }
+
+            .sidebar.collapsed .sidebar-toggle {
+                position: absolute;
+                right: 12px;
+                background: rgba(255, 255, 255, 0.1);
+                box-shadow: none;
+            }
+
+            .sidebar.collapsed .sidebar-toggle i {
+                transform: none;
+            }
+
+            .main-wrapper {
+                margin-left: 0;
+            }
+
+            .main-wrapper.expanded {
+                margin-left: 0;
+            }
+
+            .mobile-menu-btn {
+                display: flex;
+            }
+
+            .main-content {
+                padding: 1rem;
+                padding-top: 4.5rem;
+            }
+
+            .sidebar-toggle {
+                display: none;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .page-header h2 {
+                font-size: 1.5rem;
+            }
+            
+            .card-body {
+                padding: 1rem;
+            }
+            
+            #text-container {
+                font-size: 1rem;
+                padding: 15px;
+            }
+        }
+        
+        /* ========== 深色模式支持 ========== */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: #121212;
+                color: #ffffff;
+            }
+            
+            .card {
+                background-color: #1e1e1e;
+                color: #ffffff;
+            }
+            
+            .card-title {
+                color: #ffffff;
+            }
+            
+            .text-muted {
+                color: #b0b0b0 !important;
+            }
+            
+            #text-container {
+                background-color: #1e1e1e;
+                border-color: #333333;
+                color: #ffffff;
+            }
+            
+            .seg-container {
+                background-color: #1e1e1e;
+            }
+            
+            .seg-box {
+                background-color: #2d2d2d;
+                border-color: #444444;
+                color: #ffffff;
+            }
+            
+            .seg-word {
+                color: #ffffff;
+            }
+        }
+
+        /* 加载动画 */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 滚动条美化 */
+        .sidebar-nav::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .sidebar-nav::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .sidebar-nav::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+        }
+
+        .sidebar-nav::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 移动端遮罩层 -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMobileSidebar()"></div>
+
+    <!-- 移动端菜单按钮 -->
+    <button class="mobile-menu-btn" id="mobileMenuBtn" onclick="toggleMobileSidebar()">
+        <i class="bi bi-list"></i>
+    </button>
+
+    <!-- 侧边栏导航 -->
+    <div class="sidebar" id="sidebar">
+        <!-- 侧边栏头部 -->
+        <div class="sidebar-header">
+            <div class="sidebar-brand">
+                <i class="bi bi-tag-fill"></i>
+                <h4>文本标注系统</h4>
+            </div>
+            <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" title="折叠/展开">
+                <i class="bi bi-chevron-left"></i>
+            </button>
+        </div>
+
+        <!-- 导航菜单 -->
+        <nav class="sidebar-nav">
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a href="/" class="nav-link" data-title="任务管理">
+                        <i class="bi bi-folder-fill"></i>
+                        <span>任务管理</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/stats" class="nav-link" data-title="数据统计">
+                        <i class="bi bi-bar-chart-fill"></i>
+                        <span>数据统计</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/knowledge_base" class="nav-link" data-title="知识库管理">
+                        <i class="bi bi-database-fill"></i>
+                        <span>知识库管理</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-title="使用帮助" data-bs-toggle="modal" data-bs-target="#helpModal">
+                        <i class="bi bi-question-circle-fill"></i>
+                        <span>使用帮助</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- 侧边栏底部 -->
+        <div class="sidebar-footer">
+            <small>©软课设 分组3 文本标注系统</small>
+        </div>
+    </div>
+
+    <!-- 主内容区域 -->
+    <div class="main-wrapper" id="mainWrapper">
+        <div class="main-content">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <!-- 帮助模态框 -->
+    <div class="modal fade" id="helpModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header" style="background: linear-gradient(135deg, var(--primary-color), #6c75f5); color: white;">
+                    <h5 class="modal-title"><i class="bi bi-question-circle me-2"></i>使用帮助</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <h6><i class="bi bi-1-circle-fill text-primary me-2"></i>文件管理</h6>
+                    <p class="text-muted">点击"新建任务"按钮上传文本文件，支持.txt格式，也可以手动输入文本内容。</p>
+                    
+                    <h6><i class="bi bi-2-circle-fill text-primary me-2"></i>手动标注</h6>
+                    <p class="text-muted">在文本中选择需要标注的内容，然后在弹出的菜单中选择标注类型。</p>
+                    
+                    <h6><i class="bi bi-3-circle-fill text-primary me-2"></i>智能标注</h6>
+                    <p class="text-muted">点击"智能标注"按钮，系统会自动识别并标注文本中的实体。</p>
+                    
+                    <h6><i class="bi bi-4-circle-fill text-primary me-2"></i>标注类型</h6>
+                    <div class="row g-2 mt-2">
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center p-2 bg-light rounded">
+                                <span class="badge bg-info me-2">人名</span>
+                                <small class="text-muted">表示文本中的人物名称</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center p-2 bg-light rounded">
+                                <span class="badge bg-success me-2">地名</span>
+                                <small class="text-muted">表示文本中的地点名称</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center p-2 bg-light rounded">
+                                <span class="badge bg-danger me-2">组织</span>
+                                <small class="text-muted">表示组织机构名称</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center p-2 bg-light rounded">
+                                <span class="badge" style="background-color: #6f42c1;">时间</span>
+                                <small class="text-muted ms-2">表示时间信息</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center p-2 bg-light rounded">
+                                <span class="badge" style="background-color: #fd7e14;">情感</span>
+                                <small class="text-muted ms-2">表示情感关键词</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">
+                        <i class="bi bi-check-lg me-2"></i>我知道了
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // ========== 侧边栏折叠功能 ==========
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const mainWrapper = document.getElementById('mainWrapper');
+            
+            sidebar.classList.toggle('collapsed');
+            mainWrapper.classList.toggle('expanded');
+            
+            // 保存状态到 localStorage
+            const isCollapsed = sidebar.classList.contains('collapsed');
+            localStorage.setItem('sidebarCollapsed', isCollapsed);
+        }
+
+        // ========== 移动端侧边栏功能 ==========
+        function toggleMobileSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const menuBtn = document.getElementById('mobileMenuBtn');
+            
+            sidebar.classList.toggle('mobile-show');
+            overlay.classList.toggle('show');
+            
+            // 切换按钮图标
+            const icon = menuBtn.querySelector('i');
+            if (sidebar.classList.contains('mobile-show')) {
+                icon.classList.remove('bi-list');
+                icon.classList.add('bi-x-lg');
+            } else {
+                icon.classList.remove('bi-x-lg');
+                icon.classList.add('bi-list');
+            }
+        }
+
+        function closeMobileSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const menuBtn = document.getElementById('mobileMenuBtn');
+            
+            sidebar.classList.remove('mobile-show');
+            overlay.classList.remove('show');
+            
+            const icon = menuBtn.querySelector('i');
+            icon.classList.remove('bi-x-lg');
+            icon.classList.add('bi-list');
+        }
+
+        // ========== 页面加载时初始化 ==========
+        document.addEventListener('DOMContentLoaded', function() {
+            // 恢复侧边栏状态
+            const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+            const sidebar = document.getElementById('sidebar');
+            const mainWrapper = document.getElementById('mainWrapper');
+            
+            if (isCollapsed && window.innerWidth > 992) {
+                sidebar.classList.add('collapsed');
+                mainWrapper.classList.add('expanded');
+            }
+
+            // 高亮当前导航项
+            const currentPath = window.location.pathname;
+            const navLinks = document.querySelectorAll('.sidebar-nav .nav-link');
+            
+            navLinks.forEach(link => {
+                const href = link.getAttribute('href');
+                if (href === currentPath || 
+                    (currentPath.startsWith('/annotate') && href === '/') ||
+                    (currentPath.startsWith('/auto_annotate') && href === '/')) {
+                    link.classList.add('active');
+                } else if (href !== '#') {
+                    link.classList.remove('active');
+                }
+            });
+
+            // 监听窗口大小变化
+            window.addEventListener('resize', function() {
+                if (window.innerWidth > 992) {
+                    closeMobileSidebar();
+                }
+            });
+
+            // ESC 键关闭移动端侧边栏
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    closeMobileSidebar();
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

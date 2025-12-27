@@ -1,0 +1,476 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<style>
+    /* 统计页面样式优化 */
+    .stat-card {
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+    }
+    
+    .stat-card .card-body {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        padding: 2rem 1rem;
+    }
+    
+    .stat-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.8;
+    }
+    
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #ffffff;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-label {
+        font-size: 1rem;
+        color: rgba(255, 255, 255, 0.9);
+        font-weight: 500;
+    }
+    
+    /* 图表卡片样式 */
+    .chart-card {
+        margin-bottom: 2rem;
+    }
+    
+    .chart-card .card-header {
+        font-weight: 600;
+        font-size: 1.1rem;
+        background-color: #ffffff;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .chart-card .card-body {
+        padding: 2rem;
+    }
+    
+    /* 进度条样式 */
+    .progress-container {
+        margin-top: 2rem;
+    }
+    
+    .progress-item {
+        margin-bottom: 1rem;
+    }
+    
+    .progress-item .d-flex justify-content-between {
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+    }
+    
+    .progress {
+        height: 10px;
+        border-radius: 5px;
+        overflow: hidden;
+    }
+    
+    .progress-bar {
+        border-radius: 5px;
+        transition: width 0.6s ease;
+    }
+    
+    /* 页面标题样式 */
+    .page-header {
+        margin-bottom: 2rem;
+    }
+    
+    /* 增强颜色对比度和分辨度 */
+    .stat-card.bg-primary {
+        background-color: #007bff;
+        box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+    }
+    
+    .stat-card.bg-success {
+        background-color: #28a745;
+        box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+    }
+    
+    .stat-card.bg-info {
+        background-color: #17a2b8;
+        box-shadow: 0 4px 8px rgba(23, 162, 184, 0.3);
+    }
+    
+    .stat-card.bg-warning {
+        background-color: #ffc107;
+        box-shadow: 0 4px 8px rgba(255, 193, 7, 0.3);
+    }
+    
+    .stat-card.bg-danger {
+        background-color: #dc3545;
+        box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+    }
+    
+    /* 添加紫色（时间）和增强的橙色（情感） */
+    .stat-card.bg-purple {
+        background-color: #6f42c1;
+        box-shadow: 0 4px 8px rgba(111, 66, 193, 0.3);
+    }
+    
+    /* 增强情感标注的颜色 */
+    .stat-card.bg-warning {
+        background-color: #fd7e14;
+        box-shadow: 0 4px 8px rgba(253, 126, 20, 0.3);
+    }
+</style>
+
+<div class="page-header">
+    <h2><i class="bi bi-bar-chart-fill text-primary me-2"></i> 数据统计分析</h2>
+    <p class="text-muted">查看标注数据的统计信息和可视化图表</p>
+</div>
+
+<!-- 统计卡片 -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card bg-primary">
+            <div class="card-body">
+                <i class="bi bi-file-text-fill text-white stat-icon"></i>
+                <div class="stat-number">{{ total_files }}</div>
+                <div class="stat-label">总文件数</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card bg-success">
+            <div class="card-body">
+                <i class="bi bi-tag-fill text-white stat-icon"></i>
+                <div class="stat-number">{{ total_anns }}</div>
+                <div class="stat-label">总标注数</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card bg-info">
+            <div class="card-body">
+                <i class="bi bi-person-fill text-white stat-icon"></i>
+                <div class="stat-number">
+                    {% for label, count in stats_data %}
+                        {% if label == '人名' %}{{ count }}{% endif %}
+                    {% endfor %}
+                </div>
+                <div class="stat-label">人名标注</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card bg-warning text-dark">
+            <div class="card-body">
+                <i class="bi bi-building-fill text-dark stat-icon"></i>
+                <div class="stat-number">
+                    {% for label, count in stats_data %}
+                        {% if label == '组织' %}{{ count }}{% endif %}
+                    {% endfor %}
+                </div>
+                <div class="stat-label">组织标注</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card bg-danger">
+            <div class="card-body">
+                <i class="bi bi-geo-alt-fill text-white stat-icon"></i>
+                <div class="stat-number">
+                    {% for label, count in stats_data %}
+                        {% if label == '地名' %}{{ count }}{% endif %}
+                    {% endfor %}
+                </div>
+                <div class="stat-label">地名标注</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card bg-purple">
+            <div class="card-body">
+                <i class="bi bi-clock-fill text-white stat-icon"></i>
+                <div class="stat-number">
+                    {% for label, count in stats_data %}
+                        {% if label == '时间' %}{{ count }}{% endif %}
+                    {% endfor %}
+                </div>
+                <div class="stat-label">时间标注</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card bg-warning">
+            <div class="card-body">
+                <i class="bi bi-emoji-heart-eyes-fill text-white stat-icon"></i>
+                <div class="stat-number">
+                    {% for label, count in stats_data %}
+                        {% if label == '情感' %}{{ count }}{% endif %}
+                    {% endfor %}
+                </div>
+                <div class="stat-label">情感标注</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card bg-info">
+            <div class="card-body">
+                <i class="bi bi-file-text-fill text-white stat-icon"></i>
+                <div class="stat-number">{{ avg_anns }}</div>
+                <div class="stat-label">平均标注数</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 图表区域 -->
+<div class="row">
+    <!-- 柱状图 - 标注类别分布 -->
+    <div class="col-lg-8">
+        <div class="card chart-card">
+            <div class="card-header">
+                <i class="bi bi-bar-chart-line me-2"></i> 标注类别分布
+            </div>
+            <div class="card-body">
+                <canvas id="barChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 饼图 - 标注类别占比 -->
+    <div class="col-lg-4">
+        <div class="card chart-card">
+            <div class="card-header">
+                <i class="bi bi-pie-chart me-2"></i> 标注类别占比
+            </div>
+            <div class="card-body">
+                <canvas id="pieChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 进度条 - 标注类型分布 -->
+    <div class="col-lg-12">
+        <div class="card chart-card">
+            <div class="card-header">
+                <i class="bi bi-graph-up me-2"></i> 标注类型分布
+            </div>
+            <div class="card-body">
+                {% if total_anns > 0 %}
+                <div class="progress-container">
+                    {% for label, count in stats_data %}
+                    <div class="progress-item">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>{{ label }}</span>
+                            <span>{{ count }} ({{ "%.1f"|format(count/total_anns*100) }}%)</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar" 
+                                role="progressbar" 
+                                style="width: {{ count/total_anns*100 }}%;"
+                                aria-valuenow="{{ count }}" 
+                                aria-valuemin="0" 
+                                aria-valuemax="{{ total_anns }}">
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-bar-chart text-4xl mb-3 opacity-25"></i>
+                    <h5 class="text-muted">暂无标注数据</h5>
+                    <p class="text-muted">请先进行文本标注后查看统计信息</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 柱状图 - 标注类别分布
+    const barCtx = document.getElementById('barChart').getContext('2d');
+    new Chart(barCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ labels | tojson }},
+            datasets: [{
+                label: '标注数量',
+                data: {{ counts | tojson }},
+                backgroundColor: [
+                    'rgba(0, 192, 239, 0.6)',  // 人名 - 青色
+                    'rgba(25, 135, 84, 0.6)',   // 地名 - 绿色
+                    'rgba(220, 53, 69, 0.6)',   // 组织 - 红色
+                    'rgba(111, 66, 193, 0.6)',  // 时间 - 紫色
+                    'rgba(253, 126, 20, 0.6)'   // 情感 - 橙色
+                ],
+                borderColor: [
+                    'rgba(0, 192, 239, 1)',
+                    'rgba(25, 135, 84, 1)',
+                    'rgba(220, 53, 69, 1)',
+                    'rgba(111, 66, 193, 1)',
+                    'rgba(253, 126, 20, 1)'
+                ],
+                borderWidth: 1,
+                borderRadius: 8,
+                barThickness: 30
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    cornerRadius: 8
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        display: true,
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            },
+            animation: {
+                duration: 1000,
+                easing: 'easeInOutQuart'
+            }
+        }
+    });
+    
+    // 饼图 - 标注类别占比
+    const pieCtx = document.getElementById('pieChart').getContext('2d');
+    new Chart(pieCtx, {
+        type: 'pie',
+        data: {
+            labels: {{ labels | tojson }},
+            datasets: [{
+                data: {{ counts | tojson }},
+                backgroundColor: [
+                    'rgba(0, 192, 239, 0.8)',
+                    'rgba(25, 135, 84, 0.8)',
+                    'rgba(220, 53, 69, 0.8)',
+                    'rgba(111, 66, 193, 0.8)',
+                    'rgba(253, 126, 20, 0.8)'
+                ],
+                borderColor: '#ffffff',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        usePointStyle: true
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    cornerRadius: 8,
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.raw || 0;
+                            const percentage = Math.round(value / {{ total_anns }} * 100);
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            },
+            animation: {
+                animateScale: true,
+                animateRotate: true
+            }
+        }
+    });
+    
+    // 设置图表的高度
+    document.getElementById('barChart').style.height = '400px';
+    document.getElementById('pieChart').style.height = '300px';
+    
+    // 为进度条添加颜色和动画效果
+    const progressBars = document.querySelectorAll('.progress-bar');
+    const colors = ['#0dcaf0', '#198754', '#dc3545', '#6f42c1', '#fd7e14'];
+    
+    // 为进度条添加滚动动画
+    const animateProgressBars = () => {
+        progressBars.forEach((bar, index) => {
+            const width = bar.style.width;
+            bar.style.backgroundColor = colors[index % colors.length];
+            bar.style.width = '0%';
+            setTimeout(() => {
+                bar.style.width = width;
+            }, index * 100);
+        });
+    };
+    
+    // 监听滚动事件，当进度条进入视口时开始动画
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                animateProgressBars();
+                observer.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.1 });
+    
+    const progressContainer = document.querySelector('.progress-container');
+    if (progressContainer) {
+        observer.observe(progressContainer);
+    }
+    
+    // 添加图表交互效果
+    const barChart = Chart.getChart('barChart');
+    const pieChart = Chart.getChart('pieChart');
+    
+    // 柱状图悬停效果
+    if (barChart) {
+        barChart.options.plugins.tooltip.callbacks.label = function(context) {
+            const label = context.label || '';
+            const value = context.raw || 0;
+            const percentage = Math.round(value / {{ total_anns }} * 100);
+            return `${label}: ${value} (${percentage}%)`;
+        };
+    }
+    
+    // 饼图点击事件
+    if (pieChart) {
+        pieChart.options.onClick = function(event, elements) {
+            if (elements.length > 0) {
+                const index = elements[0].index;
+                const label = pieChart.data.labels[index];
+                alert(`点击了: ${label}\n数量: ${pieChart.data.datasets[0].data[index]}`);
+            }
+        };
+    }
+</script>
+{% endblock %}
