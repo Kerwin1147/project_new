@@ -48,7 +48,6 @@
         padding: 1.5rem;
     }
     
-    /* 统计数字 - 白色加粗 */
     .stat-number {
         font-size: 2.5rem;
         font-weight: 700;
@@ -56,7 +55,6 @@
         text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     }
     
-    /* 统计标签 - 白色 */
     .stat-label {
         font-size: 1rem;
         color: #ffffff;
@@ -64,14 +62,12 @@
         font-weight: 500;
     }
     
-    /* 统计图标 - 白色半透明 */
     .stat-icon {
         font-size: 2.5rem;
         color: rgba(255, 255, 255, 0.9);
         margin-bottom: 0.5rem;
     }
     
-    /* 各统计卡片背景色 */
     .stat-card.bg-primary {
         background: linear-gradient(135deg, #4a6cf7 0%, #6c75f5 100%) !important;
     }
@@ -295,9 +291,8 @@
     </div>
 </div>
 
-<!-- 统计卡片 - 四个卡片分别显示 -->
+<!-- 统计卡片 -->
 <div class="row mb-4">
-    <!-- 总任务数 -->
     <div class="col-lg-3 col-md-6 mb-3">
         <div class="card stat-card bg-primary">
             <div class="card-body">
@@ -308,7 +303,6 @@
         </div>
     </div>
     
-    <!-- 未开始任务 -->
     {% set pending_count = files|selectattr('status', 'equalto', 0)|list|length %}
     <div class="col-lg-3 col-md-6 mb-3">
         <div class="card stat-card bg-secondary">
@@ -320,7 +314,6 @@
         </div>
     </div>
     
-    <!-- 进行中任务 -->
     {% set processing_count = files|selectattr('status', 'equalto', 1)|list|length %}
     <div class="col-lg-3 col-md-6 mb-3">
         <div class="card stat-card bg-warning">
@@ -332,7 +325,6 @@
         </div>
     </div>
     
-    <!-- 已完成任务 -->
     {% set completed_count = files|selectattr('status', 'equalto', 2)|list|length %}
     <div class="col-lg-3 col-md-6 mb-3">
         <div class="card stat-card bg-success">
@@ -345,7 +337,7 @@
     </div>
 </div>
 
-<!-- 搜索框 - 添加实际功能 -->
+<!-- 搜索框 -->
 <div class="card mb-4">
     <div class="card-body">
         <div class="search-box">
@@ -375,18 +367,15 @@
                     <div>
                         {% if file.status == 0 %}
                         <span class="badge bg-secondary">
-                            <span class="status-indicator pending"></span>
-                            未开始
+                            <span class="status-indicator pending"></span>未开始
                         </span>
                         {% elif file.status == 1 %}
                         <span class="badge bg-warning text-dark">
-                            <span class="status-indicator processing"></span>
-                            进行中
+                            <span class="status-indicator processing"></span>进行中
                         </span>
                         {% else %}
                         <span class="badge bg-success">
-                            <span class="status-indicator completed"></span>
-                            已完成
+                            <span class="status-indicator completed"></span>已完成
                         </span>
                         {% endif %}
                     </div>
@@ -402,12 +391,14 @@
                     <a href="/annotate/{{ file.id }}" class="btn btn-outline-primary">
                         <i class="bi bi-pencil-square me-1"></i> 进入标注
                     </a>
-                    <a href="/auto_annotate/{{ file.id }}" class="btn btn-outline-success">
-                        <i class="bi bi-magic me-1"></i> 智能标注
-                    </a>
                     {% if file.status == 1 %}
                     <button class="btn btn-outline-info" onclick="markComplete({{ file.id }})">
                         <i class="bi bi-check2-all me-1"></i> 标记完成
+                    </button>
+                    {% endif %}
+                    {% if file.status == 2 %}
+                    <button class="btn btn-outline-success" onclick="exportAnnotations({{ file.id }}, '{{ file.filename }}')">
+                        <i class="bi bi-download me-1"></i> 导出标注
                     </button>
                     {% endif %}
                     <button class="btn btn-outline-danger" onclick="deleteFile({{ file.id }})">
@@ -447,7 +438,6 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             
-            <!-- 选项卡导航 - 优化样式 -->
             <ul class="nav nav-tabs" id="taskTabs" role="tablist">
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active" id="file-tab" data-bs-toggle="tab" data-bs-target="#file-tab-pane" type="button" role="tab">
@@ -520,7 +510,7 @@
 </div>
 
 <script>
-    // ========== 文件上传显示文件名 ==========
+    // 文件上传显示文件名
     document.addEventListener('DOMContentLoaded', function() {
         const fileInput = document.getElementById('fileInput');
         const fileNameDisplay = document.getElementById('file-name-display');
@@ -540,27 +530,22 @@
         }
     });
 
-    // ========== 搜索功能实现 ==========
+    // 搜索功能
     document.addEventListener('DOMContentLoaded', function() {
         const searchInput = document.getElementById('search-input');
         const taskItems = document.querySelectorAll('.task-item');
         const noResults = document.getElementById('no-results');
         const taskList = document.getElementById('task-list');
         
-        // 防抖函数
         function debounce(func, wait) {
             let timeout;
             return function executedFunction(...args) {
-                const later = () => {
-                    clearTimeout(timeout);
-                    func(...args);
-                };
+                const later = () => { clearTimeout(timeout); func(...args); };
                 clearTimeout(timeout);
                 timeout = setTimeout(later, wait);
             };
         }
         
-        // 搜索函数
         function performSearch() {
             const searchTerm = searchInput.value.toLowerCase().trim();
             let visibleCount = 0;
@@ -569,21 +554,14 @@
                 const filename = item.dataset.filename;
                 const content = item.querySelector('.line-clamp-2')?.textContent.toLowerCase() || '';
                 
-                // 搜索文件名和内容
                 if (filename.includes(searchTerm) || content.includes(searchTerm)) {
                     item.style.display = 'block';
                     visibleCount++;
-                    
-                    // 添加高亮动画
-                    if (searchTerm) {
-                        item.style.animation = 'fadeIn 0.3s ease';
-                    }
                 } else {
                     item.style.display = 'none';
                 }
             });
             
-            // 显示/隐藏无结果提示
             if (visibleCount === 0 && searchTerm !== '') {
                 noResults.classList.add('show');
                 taskList.style.display = 'none';
@@ -594,66 +572,54 @@
             }
         }
         
-        // 绑定输入事件（带防抖）
         searchInput.addEventListener('input', debounce(performSearch, 200));
-        
-        // 按 Enter 键搜索
         searchInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                performSearch();
-            }
+            if (e.key === 'Enter') { e.preventDefault(); performSearch(); }
         });
-        
-        // 按 Escape 键清空搜索
         searchInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                searchInput.value = '';
-                performSearch();
-                searchInput.blur();
-            }
+            if (e.key === 'Escape') { searchInput.value = ''; performSearch(); searchInput.blur(); }
         });
     });
     
-    // ========== 删除文件功能 ==========
+    // 删除文件
     function deleteFile(fileId) {
         if (confirm('确定要删除这个文件吗？删除后将无法恢复！')) {
-            fetch(`/api/delete_file/${fileId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            })
+            fetch(`/api/delete_file/${fileId}`, { method: 'DELETE' })
             .then(response => response.json())
             .then(data => {
-                if (data.status === 'success') {
-                    // 刷新页面
-                    location.reload();
-                } else {
-                    alert('删除失败: ' + data.message);
-                }
+                if (data.status === 'success') { location.reload(); }
+                else { alert('删除失败: ' + data.message); }
             })
-            .catch(error => {
-                console.error('删除文件时出错:', error);
-                alert('删除文件时发生错误');
-            });
+            .catch(error => { alert('删除文件时发生错误'); });
         }
     }
 
+    // 标记完成
     function markComplete(fileId) {
         if (confirm('确定要将此任务标记为已完成吗？')) {
-            fetch(`/api/mark_complete/${fileId}`, {
-                method: 'POST'
-            })
+            fetch(`/api/mark_complete/${fileId}`, { method: 'POST' })
             .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    location.reload();
-                }
-            });
+            .then(data => { if (data.status === 'success') { location.reload(); } });
         }
     }
 
+    // 导出标注
+    function exportAnnotations(fileId, filename) {
+        fetch(`/api/export_annotations/${fileId}`)
+        .then(response => response.json())
+        .then(data => {
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename.replace('.txt', '') + '_annotations.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        })
+        .catch(error => { alert('导出失败，请重试'); });
+    }
 </script>
 
 <style>

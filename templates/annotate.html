@@ -2,831 +2,648 @@
 
 {% block content %}
 <style>
-    /* 实体标注的高亮样式 */
-    .entity-tag {
-        padding: 3px 8px;
-        border-radius: 6px;
-        margin: 0 3px;
+    /* 词语标签样式 - 用颜色表示词性，无间距 */
+    .word-tag {
+        display: inline;
         cursor: pointer;
-        color: white;
-        font-size: 0.95em;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-        transition: all 0.3s ease;
-        border: 2px solid transparent;
-        position: relative;
-        overflow: hidden;
+        transition: all 0.2s ease;
+        border-bottom: 2px solid transparent;
+        padding: 0;
+        margin: 0;
+    }
+    .word-tag:hover { 
+        opacity: 0.7; 
+        background: rgba(0,0,0,0.05); 
     }
     
-    .entity-tag::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-        transition: left 0.5s;
-    }
+    /* 词性颜色 */
+    .pos-n { color: #4a6cf7; }
+    .pos-nr { color: #0dcaf0; }
+    .pos-ns { color: #198754; }
+    .pos-nt { color: #dc3545; }
+    .pos-nz { color: #6f42c1; }
+    .pos-v { color: #28a745; }
+    .pos-a { color: #fd7e14; }
+    .pos-d { color: #6c757d; }
+    .pos-m { color: #343a40; }
+    .pos-q { color: #495057; }
+    .pos-r { color: #868e96; }
+    .pos-p { color: #adb5bd; }
+    .pos-c { color: #adb5bd; }
+    .pos-u { color: #ced4da; }
+    .pos-t { color: #e83e8c; }
+    .pos-w { color: #dee2e6; }
+    .pos-default { color: #333; }
     
-    .entity-tag:hover::before {
-        left: 100%;
-    }
-    
-    .entity-tag:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
-        border-color: rgba(255, 255, 255, 0.5);
-    }
-    
-    .tag-人名 { background-color: #0dcaf0; /* Cyan */ }
-    .tag-地名 { background-color: #198754; /* Green */ }
-    .tag-组织 { background-color: #dc3545; /* Red */ }
-    .tag-时间 { background-color: #6f42c1; /* Purple */ }
-    .tag-情感 { background-color: #fd7e14; /* Orange */ }
-    
-    /* 文本容器样式 */
+    /* 命名实体下划线 */
+    .entity-人名 { border-bottom-color: #0dcaf0; background: rgba(13,202,240,0.15); }
+    .entity-地名 { border-bottom-color: #198754; background: rgba(25,135,84,0.15); }
+    .entity-组织 { border-bottom-color: #dc3545; background: rgba(220,53,69,0.15); }
+    .entity-时间 { border-bottom-color: #6f42c1; background: rgba(111,66,193,0.15); }
+    .entity-情感 { border-bottom-color: #fd7e14; background: rgba(253,126,20,0.15); }
+
+    /* 文本容器 - 调大 */
     #text-container {
-        font-size: 1.15rem;
-        line-height: 2.2;
-        white-space: pre-wrap;
+        font-size: 1.1rem;
+        line-height: 1.9;
+        padding: 20px;
+        background: #fff;
         border: 1px solid #e0e0e0;
-        padding: 25px;
-        background: #ffffff;
-        border-radius: 10px;
-        min-height: 300px;
-        max-height: 500px;
+        border-radius: 8px 8px 0 0;
+        min-height: 380px;
+        max-height: 480px;
         overflow-y: auto;
-        transition: all 0.3s ease;
-        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
     }
-    
-    #text-container:focus {
-        outline: none;
-        border-color: var(--primary-color);
-        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05), 0 0 0 3px rgba(74, 108, 247, 0.1);
+
+    /* 图例样式 - 调大 */
+    .legend-container {
+        padding: 14px 18px;
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        border-radius: 0 0 8px 8px;
+        border: 1px solid #e0e0e0;
+        border-top: none;
     }
-    
-    /* 分词与词性可视化样式 */
-    .seg-container {
+    .legend-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #555;
+        margin-bottom: 10px;
+    }
+    .legend-items {
         display: flex;
         flex-wrap: wrap;
-        gap: 12px;
-        padding: 20px;
-        background: #f8f9fa;
-        border-radius: 10px;
-        max-height: 300px;
-        overflow-y: auto;
-        border: 1px solid #e0e0e0;
+        gap: 14px;
     }
-    
-    .seg-box {
+    .legend-item {
         display: inline-flex;
         align-items: center;
-        background-color: #fff;
-        border: 2px solid #e0e0e0;
-        border-radius: 8px;
-        padding: 6px 10px;
-        font-size: 0.95rem;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-        transition: all 0.3s ease;
+        font-size: 0.85rem;
+        gap: 5px;
     }
-    
-    .seg-box:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    }
-    
-    .seg-word {
-        font-weight: 600;
-        color: #333;
-        margin-right: 8px;
-    }
-    
-    .seg-pos {
-        font-size: 0.75em;
-        color: #ffffff;
-        background: var(--primary-color);
-        padding: 2px 6px;
-        border-radius: 6px;
-        font-weight: 500;
-    }
-    
-    /* 根据词性给外边框或背景微调颜色 */
-    .style-success { border-color: #28a745; background-color: rgba(40, 167, 69, 0.05); }
-    .style-primary { border-color: var(--primary-color); background-color: rgba(74, 108, 247, 0.05); }
-    .style-warning { border-color: #ffc107; background-color: rgba(255, 193, 7, 0.05); }
-    .style-info { border-color: #17a2b8; background-color: rgba(23, 162, 184, 0.05); }
-    .style-light { border-style: dashed; border-color: #dee2e6; background-color: rgba(222, 226, 230, 0.1); }
-    
-    /* 标注面板样式 */
-    .annotation-panel {
-        position: sticky;
-        top: 20px;
-    }
-    
-    /* 进度条样式 */
-    .progress {
-        height: 8px;
-        border-radius: 4px;
-        margin: 10px 0;
-        overflow: hidden;
-    }
-    
-    .progress-bar {
-        transition: width 0.6s ease;
-    }
-    
-    /* 标注列表样式 */
-    .annotation-item {
-        transition: all 0.3s ease;
-        cursor: pointer;
-    }
-    
-    .annotation-item:hover {
-        background-color: rgba(74, 108, 247, 0.05);
-        transform: translateX(5px);
-    }
-    
-    /* 加载动画 */
-    .loading-spinner {
+    .legend-color {
         display: inline-block;
-        width: 20px;
-        height: 20px;
-        border: 2px solid rgba(255, 255, 255, 0.3);
-        border-radius: 50%;
-        border-top-color: white;
-        animation: spin 1s ease-in-out infinite;
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.15);
     }
-    
-    @keyframes spin {
-        to { transform: rotate(360deg); }
+    .legend-underline {
+        display: inline-block;
+        padding: 3px 10px;
+        border-bottom: 2px solid;
+        font-size: 0.85rem;
+        border-radius: 3px;
     }
-    
-    /* 模态框样式优化 */
-    .modal-content {
+
+    /* 右侧词语列表 - 行距小一点 */
+    .word-list-container {
+        max-height: 720px;
+        overflow-y: auto;
+    }
+    .word-item {
+        padding: 8px 12px;
+        border-bottom: 1px solid #eee;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: background 0.2s;
+    }
+    .word-item:hover { background: #f8f9fa; }
+    .word-item .word-text { font-weight: 600; min-width: 50px; font-size: 0.95rem; }
+    .word-item .word-pos { font-size: 0.75em; color: #666; }
+    .word-item .word-entity {
+        font-size: 0.7em;
+        padding: 2px 8px;
         border-radius: 12px;
-        overflow: hidden;
+        color: #fff;
     }
     
-    .modal-header {
-        background: linear-gradient(135deg, var(--primary-color), #6c75f5);
-        color: white;
-        border-bottom: none;
-    }
+    /* 实体标签颜色 */
+    .entity-badge-人名 { background: #0dcaf0; }
+    .entity-badge-地名 { background: #198754; }
+    .entity-badge-组织 { background: #dc3545; }
+    .entity-badge-时间 { background: #6f42c1; }
+    .entity-badge-情感 { background: #fd7e14; }
+
+    /* 整体标注区域 - 高度小一点 */
+    .text-annotation-card { background: #f8f9fa; }
+    .text-annotation-card .card-body { padding: 16px 20px; }
+    .text-annotation-card .row.g-4 { --bs-gutter-y: 0.8rem; }
+    .text-annotation-card .form-label { margin-bottom: 10px; }
     
-    /* 按钮组样式 */
-    .btn-group-vertical > .btn {
-        margin-bottom: 8px;
-        border-radius: 8px;
-        padding: 12px 16px;
-        text-align: left;
-        font-weight: 500;
-        border: none;
-        transition: all 0.3s ease;
+    /* 平铺选择按钮样式 */
+    .tag-btn-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
     }
-    
-    .btn-group-vertical > .btn:hover {
-        transform: translateX(8px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    }
-    
-    /* 卡片标题样式 */
-    .card-title {
-        font-weight: 600;
-        color: #333;
-    }
-    
-    /* 统计标签样式 */
-    .stat-badge {
+    .tag-btn {
+        padding: 6px 14px;
+        border-radius: 18px;
+        border: 2px solid #e0e0e0;
+        background: #fff;
+        cursor: pointer;
+        transition: all 0.2s ease;
         font-size: 0.9rem;
-        padding: 6px 12px;
-        border-radius: 20px;
         font-weight: 500;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
-    
-    /* 筛选按钮样式 */
-    .filter-btn {
-        border-radius: 8px;
-        font-size: 0.9rem;
-        padding: 6px 12px;
-        transition: all 0.3s ease;
-        border: 2px solid;
-    }
-    
-    .filter-btn.active {
-        font-weight: 600;
+    .tag-btn:hover {
+        border-color: #4a6cf7;
+        background: rgba(74, 108, 247, 0.05);
         transform: translateY(-1px);
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    }
+    .tag-btn.active {
+        border-color: #4a6cf7;
+        background: #4a6cf7;
+        color: #fff;
+        box-shadow: 0 2px 6px rgba(74, 108, 247, 0.3);
     }
     
-    /* 各类型按钮默认样式 */
-    .filter-btn[data-label="人名"] {
-        background-color: transparent;
-        color: #0dcaf0;
-        border-color: #0dcaf0;
+    /* 情感按钮特殊样式 */
+    .tag-btn.sentiment-positive.active { background: #28a745; border-color: #28a745; box-shadow: 0 2px 6px rgba(40,167,69,0.3); }
+    .tag-btn.sentiment-neutral.active { background: #6c757d; border-color: #6c757d; box-shadow: 0 2px 6px rgba(108,117,125,0.3); }
+    .tag-btn.sentiment-negative.active { background: #dc3545; border-color: #dc3545; box-shadow: 0 2px 6px rgba(220,53,69,0.3); }
+    
+    /* 左右布局 */
+    .annotation-row { 
+        display: flex; 
+        min-height: 780px;
+    }
+    .left-col { 
+        display: flex; 
+        flex-direction: column; 
+    }
+    .left-col .card:first-child {
+        flex: 1;
     }
     
-    .filter-btn[data-label="人名"].active {
-        background-color: #0dcaf0;
-        color: white;
+    /* 右侧卡片撑满 */
+    .right-col .card {
+        height: 100%;
     }
     
-    .filter-btn[data-label="地名"] {
-        background-color: transparent;
-        color: #198754;
-        border-color: #198754;
+    /* 卡片美化 */
+    .card {
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        border: none;
     }
-    
-    .filter-btn[data-label="地名"].active {
-        background-color: #198754;
-        color: white;
-    }
-    
-    .filter-btn[data-label="组织"] {
-        background-color: transparent;
-        color: #dc3545;
-        border-color: #dc3545;
-    }
-    
-    .filter-btn[data-label="组织"].active {
-        background-color: #dc3545;
-        color: white;
-    }
-    
-    .filter-btn[data-label="时间"] {
-        background-color: transparent;
-        color: #6f42c1;
-        border-color: #6f42c1;
-    }
-    
-    .filter-btn[data-label="时间"].active {
-        background-color: #6f42c1;
-        color: white;
-    }
-    
-    .filter-btn[data-label="情感"] {
-        background-color: transparent;
-        color: #fd7e14;
-        border-color: #fd7e14;
-    }
-    
-    .filter-btn[data-label="情感"].active {
-        background-color: #fd7e14;
-        color: white;
-    }
-    
-    /* 顶部筛选区域响应式调整 */
-    @media (max-width: 992px) {
-        .card-body .row.g-4 {
-            flex-direction: column;
-        }
-        
-        .card-body .row.g-4 .col-lg-4,
-        .card-body .row.g-4 .col-lg-5,
-        .card-body .row.g-4 .col-lg-3 {
-            width: 100%;
-        }
-        
-        .card-body .row.g-4 .d-flex.justify-content-end {
-            justify-content: flex-start !important;
-        }
+    .card-header {
+        border-bottom: 1px solid #eee;
     }
 </style>
 
 <div class="page-header">
     <div class="d-flex justify-content-between align-items-center">
         <div>
-            <h2><i class="bi bi-file-text-fill text-primary me-2"></i> 文本标注</h2>
-            <p class="text-muted">对文本进行实体识别和标注</p>
+            <h2><i class="bi bi-file-text-fill text-primary me-2"></i> {{ file.filename }}</h2>
+            <p class="text-muted mb-0">对文本进行分词、词性和命名实体标注</p>
         </div>
         <div class="d-flex gap-2">
-            <span class="stat-badge bg-primary text-white">
-                文件: {{ file.filename }}
-            </span>
-            <span class="stat-badge bg-success text-white">
-                标注数: {{ annotations|length }}
-            </span>
+            <button class="btn btn-primary" id="smartAnnotateBtn" onclick="smartAnnotate()">
+                <i class="bi bi-magic me-1"></i> 智能标注
+            </button>
+            <button class="btn btn-success" onclick="saveAllAnnotations()">
+                <i class="bi bi-save me-1"></i> 保存标注
+            </button>
+            <a href="/" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i> 返回
+            </a>
         </div>
     </div>
 </div>
 
-<!-- 顶部筛选和操作区域 -->
-<div class="card mb-4">
-    <div class="card-body">
-        <div class="row g-4">
-            <!-- 标注搜索 -->
-            <div class="col-lg-4">
-                <div class="input-group">
-                    <input type="text" id="annotation-search" class="form-control" placeholder="搜索标注...">
-                    <button class="btn btn-primary" type="button" onclick="filterAnnotations()">
-                        <i class="bi bi-search"></i>
-                    </button>
-                </div>
-            </div>
-            
-            <!-- 筛选标注类型 -->
-            <div class="col-lg-5">
-                <div class="d-flex flex-wrap align-items-center gap-2">
-                    <label class="form-label mb-0 me-2">筛选标注类型:</label>
-                    <div class="d-flex flex-wrap gap-2" id="annotation-filters">
-                        <button class="btn filter-btn active" data-label="all" onclick="toggleFilter('all')">
-                            <i class="bi bi-check-lg me-1"></i>所有
-                        </button>
-                        <button class="btn filter-btn tag-人名" data-label="人名" onclick="toggleFilter('人名')">
-                            <i class="bi bi-check-lg me-1"></i>人名
-                        </button>
-                        <button class="btn filter-btn tag-地名" data-label="地名" onclick="toggleFilter('地名')">
-                            <i class="bi bi-check-lg me-1"></i>地名
-                        </button>
-                        <button class="btn filter-btn tag-组织" data-label="组织" onclick="toggleFilter('组织')">
-                            <i class="bi bi-check-lg me-1"></i>组织
-                        </button>
-                        <button class="btn filter-btn tag-时间" data-label="时间" onclick="toggleFilter('时间')">
-                            <i class="bi bi-check-lg me-1"></i>时间
-                        </button>
-                        <button class="btn filter-btn tag-情感" data-label="情感" onclick="toggleFilter('情感')">
-                            <i class="bi bi-check-lg me-1"></i>情感
-                        </button>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 操作按钮 -->
-            <div class="col-lg-3">
-                <div class="d-flex flex-wrap gap-2 justify-content-end">
-                    <a href="/auto_annotate/{{ file.id }}" class="btn btn-primary btn-sm">
-                        <i class="bi bi-magic me-2"></i> 智能标注
-                    </a>
-                    <button class="btn btn-secondary btn-sm" onclick="clearAllAnnotations()">
-                        <i class="bi bi-trash me-2"></i> 清空标注
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row">
-    <!-- 主标注区域 -->
-    <div class="col-lg-8">
-        <!-- 标注工作台 -->
-        <div class="card mb-4">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0"><i class="bi bi-pencil-square text-primary me-2"></i> 标注工作台</h5>
-                <div>
-                    <span class="badge bg-info text-white">提示: 选中文字进行标注</span>
-                </div>
-            </div>
-            <div class="card-body">
-                <!-- 标注进度 -->
-                <div class="mb-4">
-                    <div class="d-flex justify-content-between text-sm text-muted mb-1">
-                        <span>标注进度</span>
-                        <span id="progress-text">0%</span>
-                    </div>
-                    <div class="progress">
-                        <div id="progress-bar" class="progress-bar bg-primary" role="progressbar" style="width: 0%"></div>
-                    </div>
-                </div>
-                
-                <!-- 文本容器 -->
-                <div id="text-container" onmouseup="handleSelection()" tabindex="0"></div>
-            </div>
-        </div>
-
-        <!-- 分词与词性可视化 -->
-        <div class="card">
-            <div class="card-header bg-white">
-                <h6 class="card-title mb-0">
-                    <i class="bi bi-grid-3x3 text-primary me-2"></i> 分词与词性可视化
+<div class="row annotation-row">
+    <!-- 左侧区域 - 加宽 -->
+    <div class="col-lg-9 left-col">
+        <!-- 文本内容区（左上） -->
+        <div class="card mb-3">
+            <div class="card-header bg-white py-2">
+                <h6 class="mb-0"><i class="bi bi-text-paragraph text-primary me-2"></i>文本内容
+                    <small class="text-muted ms-2">（点击词语可编辑实体类型）</small>
                 </h6>
             </div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <p class="text-muted small">
-                        <strong>颜色说明:</strong> 
-                        <span class="text-primary">蓝色=名词</span> | 
-                        <span class="text-success">绿色=动词</span> | 
-                        <span class="text-warning">黄色=形容词</span> | 
-                        <span class="text-info">青色=时间词</span>
-                    </p>
-                </div>
-                <div class="seg-container">
-                    {% for seg in segments %}
-                    <div class="seg-box style-{{ seg.style }}">
-                        <span class="seg-word">{{ seg.word }}</span>
-                        <span class="seg-pos">{{ seg.pos }}</span>
+            <div class="card-body p-0">
+                <div id="text-container"></div>
+                
+                <!-- 颜色图例 -->
+                <div class="legend-container">
+                    <div class="row">
+                        <div class="col-md-7">
+                            <div class="legend-title">📝 词性颜色说明</div>
+                            <div class="legend-items">
+                                <span class="legend-item"><span class="legend-color" style="background:#4a6cf7;"></span>名词</span>
+                                <span class="legend-item"><span class="legend-color" style="background:#28a745;"></span>动词</span>
+                                <span class="legend-item"><span class="legend-color" style="background:#fd7e14;"></span>形容词</span>
+                                <span class="legend-item"><span class="legend-color" style="background:#6c757d;"></span>副词</span>
+                                <span class="legend-item"><span class="legend-color" style="background:#e83e8c;"></span>时间词</span>
+                                <span class="legend-item"><span class="legend-color" style="background:#343a40;"></span>数量词</span>
+                                <span class="legend-item"><span class="legend-color" style="background:#adb5bd;"></span>虚词</span>
+                            </div>
+                        </div>
+                        <div class="col-md-5">
+                            <div class="legend-title">🏷️ 命名实体标注</div>
+                            <div class="legend-items">
+                                <span class="legend-underline entity-人名">人名</span>
+                                <span class="legend-underline entity-地名">地名</span>
+                                <span class="legend-underline entity-组织">组织</span>
+                                <span class="legend-underline entity-时间">时间</span>
+                                <span class="legend-underline entity-情感">情感</span>
+                            </div>
+                        </div>
                     </div>
-                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- 文本整体标注（左下） -->
+        <div class="card text-annotation-card">
+            <div class="card-header bg-white py-2">
+                <h6 class="mb-0"><i class="bi bi-tags text-primary me-2"></i>文本整体标注</h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-4">
+                    <div class="col-12">
+                        <label class="form-label fw-bold mb-3">文本分类</label>
+                        <div class="tag-btn-group" id="category-group">
+                            <button type="button" class="tag-btn" data-value="新闻" onclick="selectCategory(this)">📰 新闻</button>
+                            <button type="button" class="tag-btn" data-value="科技" onclick="selectCategory(this)">💻 科技</button>
+                            <button type="button" class="tag-btn" data-value="财经" onclick="selectCategory(this)">💰 财经</button>
+                            <button type="button" class="tag-btn" data-value="体育" onclick="selectCategory(this)">⚽ 体育</button>
+                            <button type="button" class="tag-btn" data-value="娱乐" onclick="selectCategory(this)">🎬 娱乐</button>
+                            <button type="button" class="tag-btn" data-value="教育" onclick="selectCategory(this)">📚 教育</button>
+                            <button type="button" class="tag-btn" data-value="健康" onclick="selectCategory(this)">🏥 健康</button>
+                            <button type="button" class="tag-btn" data-value="其他" onclick="selectCategory(this)">📁 其他</button>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-bold mb-3">文本情感</label>
+                        <div class="tag-btn-group" id="sentiment-group">
+                            <button type="button" class="tag-btn sentiment-positive" data-value="积极" onclick="selectSentiment(this)">😊 积极</button>
+                            <button type="button" class="tag-btn sentiment-neutral" data-value="中性" onclick="selectSentiment(this)">😐 中性</button>
+                            <button type="button" class="tag-btn sentiment-negative" data-value="消极" onclick="selectSentiment(this)">😞 消极</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
     
-    <!-- 右侧标注面板 -->
-    <div class="col-lg-4">
-        <div class="card h-100 annotation-panel">
-            <div class="card-header bg-white">
-                <h6 class="card-title mb-0">已保存标注</h6>
+    <!-- 右侧词语标注列表 - 变窄 -->
+    <div class="col-lg-3 right-col">
+        <div class="card">
+            <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-list-ul text-primary me-2"></i>词语标注</h6>
+                <span class="badge bg-primary" id="word-count">0 词</span>
             </div>
-            <div class="card-body p-0">
-                <ul class="list-group list-group-flush" id="annotation-list">
-                    {% for ann in annotations %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center annotation-item">
-                        <div>
-                            <span class="badge tag-{{ann.label}} me-2">{{ ann.label }}</span>
-                            <span class="text-truncate" style="max-width: 150px; display:inline-block; vertical-align:middle;">{{ ann.selected_text }}</span>
-                        </div>
-                        <button class="btn btn-sm btn-outline-danger border-0" onclick="deleteAnn({{ ann.id }})">&times;</button>
-                    </li>
-                    {% else %}
-                    <li class="list-group-item text-center text-muted py-5">
-                        <i class="bi bi-tag-fill text-4xl mb-2 opacity-25"></i>
-                        <p>暂无标注数据</p>
-                    </li>
-                    {% endfor %}
-                </ul>
-                
-                <!-- 操作按钮 -->
-                <div class="p-4">
-                    <div class="d-grid gap-3">
-                        <a href="/" class="btn btn-outline-secondary">
-                            <i class="bi bi-arrow-left me-2"></i> 返回任务列表
-                        </a>
-                    </div>
+            <div class="card-body p-0 word-list-container" id="word-list">
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-info-circle fs-1 mb-2 d-block opacity-25"></i>
+                    <p>点击"智能标注"进行分词和标注</p>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- 标签选择模态框 -->
-<div class="modal fade" id="tagModal" tabindex="-1">
+<!-- 实体选择模态框 -->
+<div class="modal fade" id="entityModal" tabindex="-1">
     <div class="modal-dialog modal-sm modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header py-3">
-                <h6 class="modal-title mb-0">选择实体类型</h6>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-header py-2" style="background: linear-gradient(135deg, #4a6cf7, #6c75f5); color: white;">
+                <h6 class="modal-title mb-0">
+                    <i class="bi bi-tag me-2"></i>选择实体类型
+                </h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-3">
-                <div class="btn-group-vertical w-100">
-                    <button class="btn btn-info text-white" onclick="submitTag('命名实体', '人名')">
-                        <i class="bi bi-person-circle me-2"></i> 人名 (Person)
-                    </button>
-                    <button class="btn btn-success" onclick="submitTag('命名实体', '地名')">
-                        <i class="bi bi-geo-alt-fill me-2"></i> 地名 (Location)
-                    </button>
-                    <button class="btn btn-danger" onclick="submitTag('命名实体', '组织')">
-                        <i class="bi bi-building-fill me-2"></i> 组织 (Organization)
-                    </button>
-                    <button class="btn" style="background-color: #6f42c1; color: white;" onclick="submitTag('命名实体', '时间')">
-                        <i class="bi bi-clock-fill me-2"></i> 时间 (Time)
-                    </button>
+                <input type="hidden" id="current-word-index">
+                <p class="text-center mb-3">
+                    当前词语：<strong id="current-word-text" class="text-primary fs-5"></strong>
+                </p>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-info text-white" onclick="setEntity('人名')">👤 人名</button>
+                    <button class="btn btn-success" onclick="setEntity('地名')">📍 地名</button>
+                    <button class="btn btn-danger" onclick="setEntity('组织')">🏢 组织</button>
+                    <button class="btn text-white" style="background:#6f42c1" onclick="setEntity('时间')">⏰ 时间</button>
+                    <button class="btn btn-warning" onclick="setEntity('情感')">💖 情感</button>
                     <hr class="my-2">
-                    <button class="btn btn-warning text-dark" onclick="submitTag('情感标注', '情感')">
-                        <i class="bi bi-emoji-heart-eyes-fill me-2"></i> 情感关键词
+                    <button class="btn btn-outline-secondary" onclick="setEntity(null)">
+                        <i class="bi bi-x-circle me-1"></i>清除实体
                     </button>
-                    <hr class="my-2">
-                    <button id="cancel-tag-btn" class="btn btn-outline-danger" onclick="cancelTag()" style="display: none;">
-                        <i class="bi bi-x-circle-fill me-2"></i> 取消标注
-                    </button>
-                </div>
-                <div class="mt-3 p-2 bg-light rounded">
-                    <p class="text-xs text-muted mb-1">当前选中:</p>
-                    <p class="text-sm font-weight-bold" id="selected-text-preview"></p>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<script>
-    const fileId = {{ file.id }};
-    const rawText = `{{ file.content }}`;
-    
-    // 获取后端传来的标注列表
-    let annotations = [
-        {% for ann in annotations %}
-        {id: {{ann.id}}, start: {{ann.start_index}}, end: {{ann.end_index}}, label: '{{ann.label}}', type: '{{ann.tag_type}}'},
+<!-- 使用 script 标签安全传递数据 -->
+<script id="file-data" type="application/json">
+{
+    "fileId": {{ file.id }},
+    "rawText": {{ file.content | tojson }},
+    "textAnn": {
+        "category": {{ (text_ann.text_category if text_ann and text_ann.text_category else "") | tojson }},
+        "sentiment": {{ (text_ann.text_sentiment if text_ann and text_ann.text_sentiment else "") | tojson }}
+    },
+    "wordAnns": [
+        {% if word_anns %}
+        {% for w in word_anns %}
+        {
+            "id": {{ w.id }},
+            "index": {{ w.word_index }},
+            "word": {{ w.word | tojson }},
+            "pos": {{ (w.pos or "") | tojson }},
+            "pos_cn": {{ (w.pos_cn or "") | tojson }},
+            "entity_label": {{ (w.entity_label or "") | tojson }}
+        }{% if not loop.last %},{% endif %}
         {% endfor %}
-    ];
-    
-    let currentSelection = null;
-    let tagModal;
+        {% endif %}
+    ]
+}
+</script>
 
-    document.addEventListener('DOMContentLoaded', function() {
-        tagModal = new bootstrap.Modal(document.getElementById('tagModal'));
-        renderText();
-        updateProgress();
+<script>
+// 安全地从 JSON 脚本标签获取数据
+const fileData = JSON.parse(document.getElementById('file-data').textContent);
+const fileId = fileData.fileId;
+const rawText = fileData.rawText;
+
+let wordAnnotations = [];
+let selectedCategory = '';
+let selectedSentiment = '';
+let hasChanges = false;
+let entityModal;
+
+document.addEventListener('DOMContentLoaded', function() {
+    entityModal = new bootstrap.Modal(document.getElementById('entityModal'));
+    
+    // 初始显示原始文本
+    displayRawText();
+    
+    // 加载已有标注
+    if (fileData.wordAnns && fileData.wordAnns.length > 0) {
+        wordAnnotations = fileData.wordAnns.map(w => ({
+            id: w.id,  // 添加这行
+            index: w.index,
+            word: w.word,
+            pos: w.pos,
+            pos_cn: w.pos_cn,
+            entity_label: w.entity_label || null
+        }));
+        renderAll();
+    }
+    
+    // 设置已有的文本整体标注
+    if (fileData.textAnn.category) {
+        setInitialCategory(fileData.textAnn.category);
+    }
+    if (fileData.textAnn.sentiment) {
+        setInitialSentiment(fileData.textAnn.sentiment);
+    }
+});
+
+// 显示原始文本
+function displayRawText() {
+    const container = document.getElementById('text-container');
+    const escapedText = rawText
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br>');
+    container.innerHTML = `<div style="color:#333;">${escapedText}</div>`;
+}
+
+// 设置初始分类
+function setInitialCategory(value) {
+    if (!value) return;
+    selectedCategory = value;
+    document.querySelectorAll('#category-group .tag-btn').forEach(btn => {
+        if (btn.dataset.value === value) {
+            btn.classList.add('active');
+        }
     });
+}
 
-    // 渲染带有高亮的文本
-    function renderText() {
-        let container = document.getElementById('text-container');
-        annotations.sort((a, b) => a.start - b.start);
-        
-        let html = '';
-        let lastIdx = 0;
-        
-        annotations.forEach(ann => {
-            // 安全处理：防止索引越界
-            if (ann.start < lastIdx) return; 
-            
-            html += rawText.substring(lastIdx, ann.start);
-            let text = rawText.substring(ann.start, ann.end);
-            // 渲染高亮标签
-            html += `<span class="entity-tag tag-${ann.label}" title="${ann.type}: ${ann.label}" onclick="selectAnnotation(${ann.id})"><strong>${text}</strong></span>`;
-            lastIdx = ann.end;
-        });
-        
-        html += rawText.substring(lastIdx);
-        container.innerHTML = html;
-    }
+// 设置初始情感
+function setInitialSentiment(value) {
+    if (!value) return;
+    selectedSentiment = value;
+    document.querySelectorAll('#sentiment-group .tag-btn').forEach(btn => {
+        if (btn.dataset.value === value) {
+            btn.classList.add('active');
+        }
+    });
+}
 
-    // 监听鼠标选中文本
-    function handleSelection() {
-        const selection = window.getSelection();
-        const text = selection.toString().trim();
-        
-        if (text.length > 0) {
-            // 简单的索引查找，实际项目中需要更精确的位置计算
-            let start = rawText.indexOf(text);
+// 选择分类
+function selectCategory(btn) {
+    document.querySelectorAll('#category-group .tag-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedCategory = btn.dataset.value;
+    markChanged();
+}
+
+// 选择情感
+function selectSentiment(btn) {
+    document.querySelectorAll('#sentiment-group .tag-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedSentiment = btn.dataset.value;
+    markChanged();
+}
+
+// 智能标注
+function smartAnnotate() {
+    const btn = document.getElementById('smartAnnotateBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>标注中...';
+    
+    fetch(`/api/smart_annotate/${fileId}`, { method: 'POST' })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') {
+            wordAnnotations = data.word_annotations;
             
-            if (start !== -1) {
-                currentSelection = {
-                    text: text,
-                    start: start,
-                    end: start + text.length
-                };
-                
-                // 检查选中的文本是否有对应的标注
-                const hasAnnotation = annotations.some(ann => 
-                    ann.start >= start && ann.end <= start + text.length
-                );
-                
-                // 显示选中的文本预览
-                document.getElementById('selected-text-preview').textContent = text;
-                
-                // 显示或隐藏取消标注按钮
-                const cancelBtn = document.getElementById('cancel-tag-btn');
-                if (cancelBtn) {
-                    cancelBtn.style.display = hasAnnotation ? 'block' : 'none';
-                }
-                
-                tagModal.show();
+            if (data.text_annotation && data.text_annotation.category) {
+                setInitialCategory(data.text_annotation.category);
             }
-        }
-    }
-
-    // 提交标注
-    function submitTag(type, label) {
-        if(!currentSelection) return;
-
-        // 显示加载动画
-        const buttons = document.querySelectorAll('.btn-group-vertical .btn');
-        buttons.forEach(btn => {
-            btn.disabled = true;
-            btn.innerHTML = '<span class="loading-spinner me-2"></span> 保存中...';
-        });
-
-        fetch('/api/save_annotation', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                file_id: fileId,
-                tag_type: type,
-                label: label,
-                text: currentSelection.text,
-                start: currentSelection.start,
-                end: currentSelection.end
-            })
-        })
-        .then(res => res.json())
-        .then(data => {
-            tagModal.hide();
-            // 重新加载页面以显示新标注
-            location.reload();
-        });
-    }
-
-    // 删除标注
-    function deleteAnn(id) {
-        if(confirm('确定删除此标注吗？')) {
-            fetch('/api/delete_annotation', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({id: id})
-            })
-            .then(() => location.reload());
-        }
-    }
-    
-    // 取消标注
-    function cancelTag() {
-        if(!currentSelection) return;
-        
-        // 查找选中位置对应的所有标注
-        const annotationsToDelete = annotations.filter(ann => 
-            // 检查标注是否与选中范围有重叠
-            !(ann.end <= currentSelection.start || ann.start >= currentSelection.end)
-        );
-        
-        if(annotationsToDelete.length === 0) {
-            tagModal.hide();
-            return;
-        }
-        
-        if(confirm(`确定取消选中文字的 ${annotationsToDelete.length} 个标注吗？`)) {
-            // 显示加载动画
-            const buttons = document.querySelectorAll('.btn-group-vertical .btn');
-            buttons.forEach(btn => {
-                btn.disabled = true;
-                btn.innerHTML = '<span class="loading-spinner me-2"></span> 取消中...';
-            });
-            
-            // 批量删除标注
-            const deletePromises = annotationsToDelete.map(ann => 
-                fetch('/api/delete_annotation', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({id: ann.id})
-                })
-            );
-            
-            Promise.all(deletePromises)
-                .then(() => {
-                    tagModal.hide();
-                    location.reload();
-                });
-        }
-    }
-
-    // 清空所有标注
-    function clearAllAnnotations() {
-        if(confirm('确定清空所有标注吗？此操作不可恢复！')) {
-            fetch('/api/clear_annotations', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({file_id: fileId})
-            })
-            .then(() => location.reload());
-        }
-    }
-
-    // 选中标注（用于高亮显示）
-    function selectAnnotation(id) {
-        // 简单的实现，实际项目中可以添加滚动到对应位置等功能
-        console.log('选中标注:', id);
-    }
-
-    // 更新标注进度
-    function updateProgress() {
-        const totalWords = rawText.split(/\s+/).length;
-        const annotatedWords = annotations.reduce((sum, ann) => sum + ann.label.length, 0);
-        const progress = Math.min(Math.round((annotatedWords / totalWords) * 100), 100);
-        
-        document.getElementById('progress-bar').style.width = `${progress}%`;
-        document.getElementById('progress-text').textContent = `${progress}%`;
-    }
-    
-    // 筛选状态管理
-    let selectedFilters = new Set(['all']);
-    
-    // 切换筛选状态
-    function toggleFilter(label) {
-        if (label === 'all') {
-            // 选择所有类型
-            if (selectedFilters.has('all')) {
-                // 如果已经选择了所有，不做任何操作
-                return;
-            } else {
-                // 选择所有，清空其他选择
-                selectedFilters.clear();
-                selectedFilters.add('all');
+            if (data.text_annotation && data.text_annotation.sentiment) {
+                setInitialSentiment(data.text_annotation.sentiment);
             }
+            
+            renderAll();
+            hasChanges = true;
         } else {
-            // 选择/取消选择单个类型
-            if (selectedFilters.has('all')) {
-                // 如果当前选择了所有，先取消选择所有
-                selectedFilters.delete('all');
-            }
-            
-            if (selectedFilters.has(label)) {
-                // 取消选择该类型
-                selectedFilters.delete(label);
-                
-                // 如果没有选择任何类型，自动选择所有
-                if (selectedFilters.size === 0) {
-                    selectedFilters.add('all');
-                }
-            } else {
-                // 选择该类型
-                selectedFilters.add(label);
-            }
+            alert('标注失败: ' + (data.message || '未知错误'));
         }
-        
-        // 更新按钮状态
-        updateFilterButtons();
-        
-        // 应用筛选
-        applyFilters();
-    }
-    
-    // 更新筛选按钮状态
-    function updateFilterButtons() {
-        const filterButtons = document.querySelectorAll('.filter-btn');
-        
-        filterButtons.forEach(btn => {
-            const label = btn.dataset.label;
-            const icon = btn.querySelector('i');
-            
-            if (label === 'all') {
-                if (selectedFilters.has('all')) {
-                    btn.classList.add('active', 'btn-primary');
-                    btn.classList.remove('btn-outline-primary');
-                    icon.style.display = 'inline';
-                } else {
-                    btn.classList.remove('active', 'btn-primary');
-                    btn.classList.add('btn-outline-primary');
-                    icon.style.display = 'none';
-                }
-            } else {
-                if (selectedFilters.has(label) || selectedFilters.has('all')) {
-                    btn.classList.add('active');
-                    icon.style.display = 'inline';
-                } else {
-                    btn.classList.remove('active');
-                    icon.style.display = 'none';
-                }
-            }
-        });
-    }
-    
-    // 应用筛选（文本高亮和标注列表）
-    function applyFilters() {
-        const searchTerm = document.getElementById('annotation-search').value.toLowerCase();
-        const annotationItems = document.querySelectorAll('.annotation-item');
-        
-        // 筛选标注列表
-        annotationItems.forEach(item => {
-            const label = item.querySelector('.badge').textContent;
-            const text = item.querySelector('.text-truncate').textContent.toLowerCase();
-            
-            const matchesSearch = text.includes(searchTerm);
-            const matchesFilter = selectedFilters.has('all') || selectedFilters.has(label);
-            
-            if (matchesSearch && matchesFilter) {
-                item.style.display = 'flex';
-            } else {
-                item.style.display = 'none';
-            }
-        });
-        
-        // 重新渲染文本以确保未选中的实体不显示
-        reRenderTextWithFilters();
-    }
-    
-    // 根据筛选条件重新渲染文本
-    function reRenderTextWithFilters() {
-        let container = document.getElementById('text-container');
-        annotations.sort((a, b) => a.start - b.start);
-        
-        let html = '';
-        let lastIdx = 0;
-        
-        annotations.forEach(ann => {
-            // 安全处理：防止索引越界
-            if (ann.start < lastIdx) return; 
-            
-            html += rawText.substring(lastIdx, ann.start);
-            let text = rawText.substring(ann.start, ann.end);
-            
-            // 只渲染选中类型的标注
-            if (selectedFilters.has('all') || selectedFilters.has(ann.label)) {
-                // 渲染高亮标签
-                html += `<span class="entity-tag tag-${ann.label}" title="${ann.type}: ${ann.label}" onclick="selectAnnotation(${ann.id})"><strong>${text}</strong></span>`;
-            } else {
-                // 不渲染未选中类型的标注，直接显示原始文本
-                html += text;
-            }
-            
-            lastIdx = ann.end;
-        });
-        
-        html += rawText.substring(lastIdx);
-        container.innerHTML = html;
-    }
-    
-    // 初始化筛选功能
-    document.addEventListener('DOMContentLoaded', function() {
-        // 搜索框实时搜索
-        const searchInput = document.getElementById('annotation-search');
-        if (searchInput) {
-            searchInput.addEventListener('input', applyFilters);
-        }
-        
-        // 初始化筛选按钮样式
-        updateFilterButtons();
+    })
+    .catch(err => {
+        alert('请求失败，请重试');
+        console.error(err);
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-magic me-1"></i> 智能标注';
     });
+}
+
+// 渲染所有内容
+function renderAll() {
+    renderTextContainer();
+    renderWordList();
+}
+
+// 渲染文本容器
+function renderTextContainer() {
+    const container = document.getElementById('text-container');
+    
+    if (!wordAnnotations || wordAnnotations.length === 0) {
+        displayRawText();
+        return;
+    }
+    
+    let html = '<div>';
+    wordAnnotations.forEach((w, idx) => {
+        const posClass = getPosColorClass(w.pos);
+        const entityClass = w.entity_label ? `entity-${w.entity_label}` : '';
+        const title = (w.pos_cn || '') + (w.entity_label ? ' | ' + w.entity_label : '');
+        const escapedWord = w.word
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        html += `<span class="word-tag ${posClass} ${entityClass}" 
+                       data-index="${idx}" 
+                       title="${title}"
+                       onclick="openEntityModal(${idx})">${escapedWord}</span>`;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// 渲染词语列表
+function renderWordList() {
+    const container = document.getElementById('word-list');
+    document.getElementById('word-count').textContent = (wordAnnotations ? wordAnnotations.length : 0) + ' 词';
+    
+    if (!wordAnnotations || wordAnnotations.length === 0) {
+        container.innerHTML = `<div class="text-center py-5 text-muted">
+            <i class="bi bi-info-circle fs-1 mb-2 d-block opacity-25"></i>
+            <p>点击"智能标注"进行分词和标注</p>
+        </div>`;
+        return;
+    }
+    
+    let html = '';
+    wordAnnotations.forEach((w, idx) => {
+        const escapedWord = w.word
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        const entityBadge = w.entity_label 
+            ? `<span class="word-entity entity-badge-${w.entity_label}">${w.entity_label}</span>`
+            : '<span class="text-muted" style="font-size:0.75em">-</span>';
+        
+        html += `<div class="word-item" data-index="${idx}">
+            <div>
+                <span class="word-text">${escapedWord}</span>
+                <span class="word-pos">${w.pos_cn || ''}</span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                ${entityBadge}
+                <button class="btn btn-sm btn-outline-primary border-0 p-1" onclick="openEntityModal(${idx})" title="编辑实体">
+                    <i class="bi bi-pencil"></i>
+                </button>
+            </div>
+        </div>`;
+    });
+    container.innerHTML = html;
+}
+
+// 获取词性颜色类
+function getPosColorClass(pos) {
+    if (!pos) return 'pos-default';
+    const map = {
+        'n': 'pos-n', 'nr': 'pos-nr', 'ns': 'pos-ns', 'nt': 'pos-nt',
+        'nz': 'pos-nz', 'v': 'pos-v', 'vd': 'pos-v', 'vn': 'pos-v',
+        'a': 'pos-a', 'ad': 'pos-a', 'd': 'pos-d', 'm': 'pos-m',
+        'q': 'pos-q', 'r': 'pos-r', 'p': 'pos-p', 'c': 'pos-c',
+        'u': 'pos-u', 'w': 'pos-w', 'x': 'pos-w', 't': 'pos-t'
+    };
+    return map[pos] || 'pos-default';
+}
+
+// 打开实体选择模态框
+function openEntityModal(wordIndex) {
+    if (!wordAnnotations || wordIndex >= wordAnnotations.length) return;
+    
+    const word = wordAnnotations[wordIndex];
+    document.getElementById('current-word-index').value = wordIndex;
+    document.getElementById('current-word-text').textContent = word.word;
+    entityModal.show();
+}
+
+// 设置实体
+function setEntity(label) {
+    const wordIndex = parseInt(document.getElementById('current-word-index').value);
+    if (wordAnnotations && wordIndex < wordAnnotations.length) {
+        wordAnnotations[wordIndex].entity_label = label;
+        renderAll();
+        markChanged();
+    }
+    entityModal.hide();
+}
+
+// 标记有更改
+function markChanged() {
+    hasChanges = true;
+}
+
+// 保存所有标注
+function saveAllAnnotations() {
+    if (!wordAnnotations || wordAnnotations.length === 0) {
+        alert('请先进行智能标注');
+        return;
+    }
+    
+    const btn = event.target.closest('button');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>保存中...';
+    
+    fetch('/api/save_all_annotations', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            file_id: fileId,
+            text_category: selectedCategory,
+            text_sentiment: selectedSentiment,
+            word_annotations: wordAnnotations
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') {
+            hasChanges = false;
+            alert('保存成功！');
+        } else {
+            alert('保存失败: ' + (data.message || '未知错误'));
+        }
+    })
+    .catch(err => {
+        alert('请求失败，请重试');
+        console.error(err);
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-save me-1"></i> 保存标注';
+    });
+}
+
+// 离开提示
+window.addEventListener('beforeunload', function(e) {
+    if (hasChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
+});
 </script>
 {% endblock %}

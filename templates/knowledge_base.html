@@ -20,7 +20,14 @@
         font-size: 0.9rem;
         padding: 4px 12px;
         border-radius: 20px;
+        color: #fff;
     }
+    
+    .label-人名 { background: #0dcaf0; }
+    .label-地名 { background: #198754; }
+    .label-组织 { background: #dc3545; }
+    .label-时间 { background: #6f42c1; }
+    .label-情感 { background: #fd7e14; }
     
     .search-input {
         border-radius: 25px;
@@ -35,6 +42,11 @@
     .entity-card:hover .delete-btn {
         opacity: 1;
     }
+    
+    .entity-list-container {
+        max-height: 600px;
+        overflow-y: auto;
+    }
 </style>
 
 <div class="page-header">
@@ -43,63 +55,89 @@
             <h2><i class="bi bi-database-fill text-primary me-2"></i> 知识库管理</h2>
             <p class="text-muted">管理系统自学习的实体知识库</p>
         </div>
-        <div>
-            <span class="stat-badge bg-primary text-white">
-                实体总数: {{ total }}
-            </span>
-        </div>
+        <span class="badge bg-primary fs-6 px-3 py-2">
+            实体总数: <span id="total-count">{{ total }}</span>
+        </span>
     </div>
 </div>
 
 <div class="row">
-    <div class="col-12">
-        <!-- 搜索框 -->
-        <div class="card mb-4">
+    <!-- 左侧：添加实体 -->
+    <div class="col-lg-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-plus-circle text-primary me-2"></i>添加实体</h6>
+            </div>
             <div class="card-body">
-                <div class="input-group">
-                    <span class="input-group-text bg-primary text-white">
-                        <i class="bi bi-search"></i>
-                    </span>
-                    <input type="text" id="entity-search" class="form-control search-input" placeholder="搜索实体...">
-                    <button class="btn btn-outline-secondary" onclick="exportKnowledgeBase()">
-                        <i class="bi bi-download me-2"></i> 导出
+                <form id="add-entity-form">
+                    <div class="mb-3">
+                        <label class="form-label">实体文本</label>
+                        <input type="text" id="entity-text" class="form-control" placeholder="输入实体名称" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">实体类型</label>
+                        <select id="entity-label" class="form-select" required>
+                            <option value="">-- 选择类型 --</option>
+                            <option value="人名">👤 人名</option>
+                            <option value="地名">📍 地名</option>
+                            <option value="组织">🏢 组织</option>
+                            <option value="时间">⏰ 时间</option>
+                            <option value="情感">💖 情感</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-plus-lg me-2"></i>添加到知识库
                     </button>
-                    <button class="btn btn-outline-danger" onclick="clearKnowledgeBase()">
-                        <i class="bi bi-trash me-2"></i> 清空
+                </form>
+            </div>
+            <div class="card-footer bg-white">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-secondary btn-sm" onclick="exportKnowledgeBase()">
+                        <i class="bi bi-download me-2"></i>导出知识库
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm" onclick="clearKnowledgeBase()">
+                        <i class="bi bi-trash me-2"></i>清空知识库
                     </button>
                 </div>
             </div>
         </div>
-        
-        <!-- 实体列表 -->
-        <div class="card">
-            <div class="card-body">
+    </div>
+    
+    <!-- 右侧：实体列表 -->
+    <div class="col-lg-8">
+        <div class="card h-100">
+            <div class="card-header bg-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="bi bi-list-ul text-primary me-2"></i>实体列表</h6>
+                    <input type="text" id="entity-search" class="form-control form-control-sm search-input" 
+                           placeholder="搜索实体..." style="max-width: 200px;">
+                </div>
+            </div>
+            <div class="card-body p-0 entity-list-container">
                 {% if entities %}
-                    <div class="row g-3" id="entity-list">
-                        {% for text, label in entities %}
-                            <div class="col-md-4 col-lg-3 entity-item">
-                                <div class="card entity-card">
-                                    <div class="card-body d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <div class="entity-text text-truncate">{{ text }}</div>
-                                            <div class="mt-1">
-                                                <span class="entity-label tag-{{ label }}">{{ label }}</span>
-                                            </div>
-                                        </div>
-                                        <button class="btn btn-sm btn-outline-danger delete-btn" onclick="deleteEntity('{{ text }}', this)">
-                                            <i class="bi bi-x"></i>
-                                        </button>
-                                    </div>
+                <div class="row g-2 p-3" id="entity-list">
+                    {% for text, label in entities %}
+                    <div class="col-md-6 col-lg-4 entity-item" data-text="{{ text|lower }}">
+                        <div class="card entity-card">
+                            <div class="card-body py-2 px-3 d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="entity-text text-truncate" style="max-width: 120px;">{{ text }}</div>
+                                    <span class="entity-label label-{{ label }}">{{ label }}</span>
                                 </div>
+                                <button class="btn btn-sm btn-outline-danger delete-btn" onclick="deleteEntity('{{ text }}', this)">
+                                    <i class="bi bi-x"></i>
+                                </button>
                             </div>
-                        {% endfor %}
+                        </div>
                     </div>
+                    {% endfor %}
+                </div>
                 {% else %}
-                    <div class="text-center py-5">
-                        <i class="bi bi-brain text-4xl mb-3 opacity-25"></i>
-                        <h5 class="text-muted">知识库为空</h5>
-                        <p class="text-muted">系统将从您的手动标注中自动学习实体</p>
-                    </div>
+                <div class="text-center py-5" id="empty-state">
+                    <i class="bi bi-database fs-1 mb-3 opacity-25 d-block"></i>
+                    <h5 class="text-muted">知识库为空</h5>
+                    <p class="text-muted">添加实体或进行手动标注后自动学习</p>
+                </div>
                 {% endif %}
             </div>
         </div>
@@ -110,98 +148,84 @@
     // 搜索实体
     document.getElementById('entity-search').addEventListener('input', function(e) {
         const searchTerm = e.target.value.toLowerCase();
-        const entityItems = document.querySelectorAll('.entity-item');
+        document.querySelectorAll('.entity-item').forEach(item => {
+            const text = item.dataset.text;
+            item.style.display = text.includes(searchTerm) ? 'block' : 'none';
+        });
+    });
+    
+    // 添加实体
+    document.getElementById('add-entity-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const text = document.getElementById('entity-text').value.trim();
+        const label = document.getElementById('entity-label').value;
         
-        entityItems.forEach(item => {
-            const text = item.querySelector('.entity-text').textContent.toLowerCase();
-            const label = item.querySelector('.entity-label').textContent.toLowerCase();
-            
-            if (text.includes(searchTerm) || label.includes(searchTerm)) {
-                item.style.display = 'block';
+        if (!text || !label) return;
+        
+        fetch('/api/knowledge_base/entity', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ text, label })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                location.reload();
             } else {
-                item.style.display = 'none';
+                alert(data.message || '添加失败');
             }
         });
     });
     
     // 删除实体
     function deleteEntity(text, btn) {
-        if (confirm(`确定要从知识库中删除实体"${text}"吗？`)) {
-            const card = btn.closest('.entity-card');
-            const entityItem = btn.closest('.entity-item');
-            
-            // 添加删除动画
-            card.style.opacity = '0.5';
-            btn.disabled = true;
-            btn.innerHTML = '<i class="bi bi-hourglass-split"></i>';
-            
-            fetch('/api/knowledge_base/entity', {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ text: text })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    // 淡出动画
-                    entityItem.style.transition = 'all 0.5s ease';
-                    entityItem.style.opacity = '0';
-                    entityItem.style.transform = 'scale(0.9)';
-                    
-                    setTimeout(() => {
-                        entityItem.remove();
-                        updateEntityCount();
-                    }, 500);
-                } else {
-                    alert('删除失败：' + data.message);
-                    card.style.opacity = '1';
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="bi bi-x"></i>';
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('删除失败，请重试');
-                card.style.opacity = '1';
-                btn.disabled = false;
-                btn.innerHTML = '<i class="bi bi-x"></i>';
-            });
-        }
-    }
-    
-    // 更新实体总数
-    function updateEntityCount() {
-        const total = document.querySelectorAll('.entity-item').length;
-        document.querySelector('.stat-badge').textContent = `实体总数: ${total}`;
+        if (!confirm(`确定删除实体"${text}"吗？`)) return;
+        
+        btn.disabled = true;
+        fetch('/api/knowledge_base/entity', {
+            method: 'DELETE',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ text })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const item = btn.closest('.entity-item');
+                item.style.transition = 'all 0.3s';
+                item.style.opacity = '0';
+                setTimeout(() => {
+                    item.remove();
+                    const count = document.querySelectorAll('.entity-item').length;
+                    document.getElementById('total-count').textContent = count;
+                }, 300);
+            }
+        });
     }
     
     // 导出知识库
     function exportKnowledgeBase() {
         fetch('/api/knowledge_base')
-            .then(response => response.json())
-            .then(data => {
-                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'knowledge_base.json';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            });
+        .then(res => res.json())
+        .then(data => {
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'knowledge_base.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        });
     }
     
     // 清空知识库
     function clearKnowledgeBase() {
-        if (confirm('确定要清空整个知识库吗？此操作不可恢复！')) {
-            if (confirm('再次确认：您将永久删除所有知识库内容！')) {
-                // 这里可以添加清空知识库的API调用
-                alert('功能开发中，敬请期待！');
-            }
-        }
+        if (!confirm('确定清空整个知识库吗？此操作不可恢复！')) return;
+        
+        fetch('/api/knowledge_base/clear', { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') { location.reload(); }
+        });
     }
 </script>
 {% endblock %}
