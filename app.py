@@ -1,12 +1,8 @@
-import os
-import jieba
 import jieba.posseg as pseg
 from snownlp import SnowNLP
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
-import re
-import json
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///annotation.db'
